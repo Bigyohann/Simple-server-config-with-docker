@@ -1,0 +1,54 @@
+global:
+  sendAnonymousUsage: false
+  checkNewVersion: false
+
+api:
+  dashboard: true
+  #debug: true
+pilot:
+  token: "54d6f04a-68e1-435a-9de4-2a91494ccca4"
+  dashboard: true
+
+experimental:
+  plugins:
+    plugin-simplecache:
+      moduleName: "github.com/traefik/plugin-simplecache"
+      version: "v0.2.1"
+
+log:
+  filePath: "/etc/traefik/log/applog.log"
+
+providers:
+  docker:
+    endpoint: unix:///var/run/docker.sock
+    exposedByDefault: false
+    watch: true
+    swarmMode: false
+    network: "traefik-proxy"
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: example@email.fr
+      #      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+http:
+  middlewares:
+    my-plugin-simplecache:
+      plugin:
+        plugin-simplecache:
+          path: /tmp

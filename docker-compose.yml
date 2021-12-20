@@ -1,0 +1,111 @@
+version: "3.7"
+services:
+  traefik:
+    image: traefik:${TRAEFIKVERSION}
+    restart: always
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./conf/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./logs/traefik/:/etc/traefik/log/
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - traefik-proxy
+    labels:
+      - traefik.enable=true
+      - traefik.certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_URL}`)
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.routers.traefik.tls=true
+      - traefik.http.routers.traefik.tls.certresolver=letsencrypt
+      - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.middlewares=auth
+      - traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_DASHBOARD_USER}:${TRAEFIK_DASHBOARD_PASSWORD}
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:alpine
+    restart: always
+    networks:
+      - traefik-proxy
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/dataportainer:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portainer.rule=Host(`${PORTAINER_URL}`)
+      - traefik.http.routers.portainer.entrypoints=websecure
+      - traefik.http.routers.portainer.tls=true
+      - traefik.http.routers.portainer.service=portainer-service
+      - traefik.http.routers.portainer.tls.certresolver=letsencrypt
+      - traefik.http.services.portainer-service.loadbalancer.server.port=9000
+
+  uptime-kuma:
+    image: louislam/uptime-kuma
+    container_name: uptimekuma
+    restart: always
+    networks:
+      - traefik-proxy
+      - mongodb
+    volumes:
+      - ./data/uptimekuma/:/app/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.uptimekuma.rule=Host(`${UPTIMEKUMA_URL}`)
+      - traefik.http.routers.uptimekuma.entrypoints=websecure
+      - traefik.http.routers.uptimekuma.tls=true
+      - traefik.http.routers.uptimekuma.service=uptimekuma-service
+      - traefik.http.routers.uptimekuma.tls.certresolver=letsencrypt
+      - traefik.http.services.uptimekuma-service.loadbalancer.server.port=3001
+
+  mongodb:
+    image : mongo
+    container_name: mongodb
+    command: --bind_ip 0.0.0.0
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - MONGO_INITDB_ROOT_USERNAME=${MONGODB_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+    volumes:
+      - ./data/mongodb/:/data/db
+    restart: unless-stopped
+    networks:
+      - mongodb
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongoexpress
+    restart: always
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGODB_USERNAME}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGODB_PASSWORD}
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGOEXPRESS_USERNAME}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGOEXPRESS_PASSWORD}
+    depends_on:
+      - mongodb
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mongodb.rule=Host(`${MONGO_EXPRESS_URL}`)
+      - traefik.http.routers.mongodb.entrypoints=websecure
+      - traefik.http.routers.mongodb.tls=true
+      - traefik.http.routers.mongodb.tls.certresolver=letsencrypt
+    networks:
+      - mongodb
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    name: "traefik-proxy"
+  mongodb:
+    name: "mongodb"
+    
