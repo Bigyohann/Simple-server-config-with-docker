@@ -5,9 +5,6 @@ global:
 api:
   dashboard: true
   #debug: true
-pilot:
-  token: "54d6f04a-68e1-435a-9de4-2a91494ccca4"
-  dashboard: true
 
 experimental:
   plugins:

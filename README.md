@@ -11,7 +11,7 @@ Start containers with
 `make build` then `make start`
 
 ## Adding services
-To add any dockerized services to the configuration, you can add traefik-proxy network and some labels in your docker-compose file in your project for every service you need to add
+To add any dockerized services to the configuration, you can add traefik-proxy network and some labels to your docker-compose file in your project for every services you need to add
 (no need to add config in this docker-compose file, i prefer to keep a different docker-compose file for every project). 
 
 ### Example: 
